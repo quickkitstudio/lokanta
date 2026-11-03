@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<!-- =====================================================================
+     LOKANTA VERESİYE — MÜŞTERİ EKRANI
+     Kasada müşteriye dönük ikinci monitörde ya da tablette açılır.
+     Kasa onay verince yemek listesi + karekod burada görünür.
+     ===================================================================== -->
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0a09">
+<title>Müşteri Ekranı</title>
+<link rel="icon" href="icon-192.png">
+<style>
+
+#netlify-deploy-badge {
+    display: none !important;
+}
+
+:root{--ana:#ea580c;--metin:#fafaf9;--soluk:#a8a29e;--cizgi:#292524}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1200px 700px at 20% 0%,#292524 0%,#0c0a09 62%) fixed;color:var(--metin);-webkit-font-smoothing:antialiased;user-select:none}
+body.imlecsiz{cursor:none}
+.gizli{display:none!important}
+.sahne{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:4vh 4vw}
+
+/* Boşta */
+#bos{flex-direction:column;text-align:center;gap:1.6vh}
+.lokanta{font-size:clamp(34px,6.5vw,100px);font-weight:800;letter-spacing:-1px;line-height:1.05;max-width:90vw}
+.karsilama{font-size:clamp(18px,2.6vw,40px);color:#d6d3d1}
+.saat{font-size:clamp(22px,3vw,48px);font-weight:300;color:var(--soluk);font-variant-numeric:tabular-nums;margin-top:3vh}
+.uyg-kart{position:fixed;right:3vw;bottom:3vh;background:#fff;color:#1c1917;border-radius:16px;padding:12px 16px 12px 12px;display:flex;align-items:center;gap:12px;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.uyg-kart svg{width:96px;height:96px;display:block}
+.uyg-kart b{display:block;font-size:16px}
+.uyg-kart small{color:#57534e;font-size:13px}
+
+/* Bekleyen sipariş */
+#siparis{gap:4vw;align-items:stretch}
+.sol{flex:1.1;display:flex;flex-direction:column;background:rgba(28,25,23,.85);border:1px solid var(--cizgi);border-radius:24px;padding:3.5vh 2.6vw;min-width:0}
+.sol h2{margin:0 0 2.4vh;font-size:clamp(18px,2vw,30px);color:var(--soluk);font-weight:700;letter-spacing:1.5px}
+.kalemler{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:1.3vh}
+.kalem{display:flex;justify-content:space-between;gap:16px;font-size:clamp(18px,2.3vw,34px);padding-bottom:1.3vh;border-bottom:1px dashed #44403c}
+.kalem .adet{color:#fb923c;font-weight:800;margin-right:12px}
+.kalem .tutar{font-weight:700;white-space:nowrap}
+.toplam{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid #44403c;padding-top:2vh;margin-top:2vh;gap:16px}
+.toplam span{font-size:clamp(18px,2.2vw,32px);color:var(--soluk);font-weight:700}
+.toplam b{font-size:clamp(34px,5vw,80px);letter-spacing:-1px}
+.sag{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3vh;min-width:0}
+.qr{background:#fff;border-radius:24px;padding:2vh;line-height:0;animation:nabiz 2.4s ease-in-out infinite}
+@keyframes nabiz{0%,100%{box-shadow:0 0 0 8px rgba(234,88,12,.3),0 20px 60px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 18px rgba(234,88,12,.12),0 20px 60px rgba(0,0,0,.5)}}
+.qr svg{width:min(58vh,38vw);height:min(58vh,38vw);display:block}
+.talimat{font-size:clamp(18px,2.3vw,36px);font-weight:700;line-height:1.25;max-width:40vw}
+.talimat em{font-style:normal;color:#fb923c}
+.talimat small{display:block;font-size:.62em;font-weight:500;color:var(--soluk);margin-top:.8vh}
+.sinir-uyari{background:#7c2d12;border:2px solid #fb923c;color:#fff7ed;border-radius:16px;padding:1.6vh 1.6vw;font-size:clamp(16px,1.7vw,26px);max-width:42vw;line-height:1.35}
+.sinir-uyari b{display:block;color:#fdba74;margin-bottom:.5vh}
+
+/* Onaylandı */
+#onay{flex-direction:column;text-align:center;gap:1.8vh;background:radial-gradient(1000px 640px at 50% 30%,#166534 0%,#052e16 72%)}
+.tik{width:clamp(110px,19vh,210px);height:clamp(110px,19vh,210px);border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:clamp(70px,12vh,130px);color:#fff;font-weight:800;animation:pop .5s cubic-bezier(.2,1.4,.4,1);box-shadow:0 0 0 14px rgba(34,197,94,.2)}
+@keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+.onay-baslik{font-size:clamp(26px,4vw,64px);font-weight:800;margin-top:1vh}
+.onay-ad{font-size:clamp(22px,3.2vw,50px);font-weight:700}
+.onay-sirket{font-size:clamp(18px,2.4vw,36px);color:#bbf7d0}
+.onay-tutar{font-size:clamp(26px,3.6vw,56px);font-weight:800;margin-top:1vh}
+.afiyet{font-size:clamp(20px,2.8vw,42px);color:#dcfce7;margin-top:2vh}
+
+/* Giriş / kurulum */
+.kutu{background:#fff;color:#1c1917;border-radius:18px;padding:24px;width:100%;max-width:400px;user-select:text}
+.kutu h1{margin:0 0 6px;font-size:22px}
+.kutu p{margin:0 0 14px;color:#57534e;font-size:14.5px;line-height:1.45}
+.kutu label{display:block;font-size:12.5px;font-weight:700;color:#57534e;margin:10px 0 5px}
+.kutu input{width:100%;font:inherit;padding:11px 12px;border:1px solid #d6d3d1;border-radius:10px}
+.kutu button{width:100%;margin-top:16px;font:inherit;font-weight:700;padding:13px;border:0;border-radius:10px;background:#c2410c;color:#fff;cursor:pointer}
+.kutu button:disabled{opacity:.6}
+.hata{background:#fef2f2;color:#b91c1c;border-radius:10px;padding:10px;font-size:14px;margin-top:12px}
+
+/* Köşe düğmeleri */
+.kose{position:fixed;right:14px;top:12px;display:flex;gap:8px;align-items:center;opacity:.3;transition:opacity .2s;z-index:10}
+.kose:hover{opacity:1}
+.kose button{font:inherit;font-size:13px;background:#292524;color:#e7e5e4;border:1px solid #44403c;border-radius:8px;padding:6px 10px;cursor:pointer}
+.nokta{width:10px;height:10px;border-radius:50%;background:#22c55e}
+.nokta.yok{background:#ef4444}
+.mesaj{position:fixed;top:0;left:0;right:0;background:#7f1d1d;color:#fff;text-align:center;padding:10px;font-weight:600;z-index:20}
+
+@media (orientation:portrait){
+  #siparis{flex-direction:column-reverse;gap:3vh}
+  .qr svg{width:min(42vh,72vw);height:min(42vh,72vw)}
+  .talimat,.sinir-uyari{max-width:90vw}
+  .sol{flex:1}
+  .uyg-kart{left:4vw;right:4vw;max-width:none}
+}
+</style>
+</head>
+<body>
+
+<div id="yukleniyor" class="sahne" style="color:#a8a29e;font-size:20px">Yükleniyor…</div>
+
+<div id="kurulum" class="sahne gizli"><div class="kutu"><h1>⚠️ Kurulum gerekli</h1><p id="kurulumMetin"></p></div></div>
+
+<div id="giris" class="sahne gizli">
+  <form class="kutu" id="girisForm">
+    <h1>🖥️ Müşteri Ekranı</h1>
+    <p>Kasa hesabıyla bir kez giriş yapın; bu cihaz hatırlanır.</p>
+    <label for="eposta">E-posta</label><input type="email" id="eposta" required autocomplete="username">
+    <label for="sifre">Şifre</label><input type="password" id="sifre" required autocomplete="current-password">
+    <div class="hata gizli" id="girisHata"></div>
+    <button type="submit" id="girisBtn">Giriş Yap</button>
+  </form>
+</div>
+
+<div id="bos" class="sahne gizli">
+  <div class="lokanta" id="lokantaAdi"></div>
+  <div class="karsilama" id="karsilama"></div>
+  <div class="saat" id="saat"></div>
+  <div class="uyg-kart"><div id="uygQr"></div><div><b>Veresiye uygulaması</b><small>Kayıt için telefonunuzun kamerasıyla okutun</small></div></div>
+</div>
+
+<div id="siparis" class="sahne gizli">
+  <div class="sol">
+    <h2>SİPARİŞİNİZ</h2>
+    <div class="kalemler" id="kalemler"></div>
+    <div class="toplam"><span>TOPLAM</span><b id="toplam"></b></div>
+  </div>
+  <div class="sag">
+    <div class="qr" id="qr"></div>
+    <div class="talimat">Uygulamada <em>KAREKOD OKUT</em>'a basın<small>ve bu kodu okutarak şirket hesabınıza işleyin</small></div>
+    <div class="sinir-uyari gizli" id="sinirUyari"></div>
+  </div>
+</div>
+
+<div id="onay" class="sahne gizli">
+  <div class="tik">✓</div>
+  <div class="onay-baslik">Hesabınıza işlendi</div>
+  <div class="onay-ad" id="onayAd"></div>
+  <div class="onay-sirket" id="onaySirket"></div>
+  <div class="onay-tutar" id="onayTutar"></div>
+  <div class="afiyet">Afiyet olsun! 🍽️</div>
+</div>
+
+<div class="kose gizli" id="kose"><span class="nokta" id="nokta" title="İnternet bağlantısı"></span><button id="tamEkran">⛶ Tam ekran</button><button id="cikis">Çıkış</button></div>
+<div class="mesaj gizli" id="mesaj"></div>
+
+<script>
+  setTimeout(function () {
+    if (!window.__yuklendi) document.getElementById('yukleniyor').textContent = 'Bağlantı sorunu: sayfa yüklenemedi. İnternet bağlantısını kontrol edip sayfayı yenileyin.';
+  }, 15000);
+</script>
+<script src="firebase-ayar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+window.__yuklendi = true;
+
+const $ = s => document.querySelector(s);
+const KASA_ID = new URLSearchParams(location.search).get('kasa') || 'kasa1';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const paraFmt = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' });
+const tl = n => paraFmt.format(Math.round((Number(n) || 0) * 100) / 100);
+const SAHNELER = ['yukleniyor', 'kurulum', 'giris', 'bos', 'siparis', 'onay'];
+
+function sahne(ad) {
+  SAHNELER.forEach(s => $('#' + s).classList.toggle('gizli', s !== ad));
+  $('#kose').classList.toggle('gizli', !['bos', 'siparis', 'onay'].includes(ad));
+  clearTimeout(onayZaman);
+  if (ad === 'onay') onayZaman = setTimeout(() => { if (!$('#onay').classList.contains('gizli')) sahne('bos'); }, 9000);
+}
+
+function qrSvg(metin) {
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(metin); qr.make();
+    const n = qr.getModuleCount(), b = 4, t = n + b * 2;
+    let p = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) p += `M${c + b} ${r + b}h1v1h-1z`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges"><rect width="${t}" height="${t}" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
+  } catch (e) { return '<div style="color:#b91c1c;line-height:1.4;padding:20px">Karekod oluşturulamadı.<br>Sayfayı yenileyin.</div>'; }
+}
+
+let ayar = { lokantaAdi: '', karsilama: '' };
+let sipUnsub = null, izlenen = null, onayZaman = null, dinleniyor = false;
+
+const cfg = (typeof firebaseConfig !== 'undefined') ? firebaseConfig : null;
+if (!cfg || !cfg.apiKey || /BURAYA/i.test(JSON.stringify(cfg))) {
+  $('#kurulumMetin').innerHTML = '<b>firebase-ayar.js</b> dosyasına Firebase bilgileri girilmemiş ya da dosya hatalı.';
+  sahne('kurulum');
+} else {
+  baslat();
+}
+
+function baslat() {
+  const app = initializeApp(cfg);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  $('#girisForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('#girisBtn'); btn.disabled = true;
+    $('#girisHata').classList.add('gizli');
+    try { await signInWithEmailAndPassword(auth, $('#eposta').value.trim(), $('#sifre').value); }
+    catch (err) {
+      const k = String(err.code || '');
+      $('#girisHata').textContent = /invalid|wrong|not-found/.test(k) ? 'E-posta veya şifre hatalı.' : k.includes('network') ? 'İnternet bağlantısı yok.' : 'Giriş yapılamadı: ' + (err.message || k);
+      $('#girisHata').classList.remove('gizli');
+    } finally { btn.disabled = false; }
+  });
+  $('#cikis').addEventListener('click', async () => {
+    if (confirm('Müşteri ekranında oturum kapatılsın mı?')) { await signOut(auth); location.reload(); }
+  });
+  $('#tamEkran').addEventListener('click', tamEkran);
+
+  onAuthStateChanged(auth, k => {
+    if (!k || k.isAnonymous) {
+      if (dinleniyor) { location.reload(); return; }
+      if (k) signOut(auth);
+      sahne('giris');
+      return;
+    }
+    dinle(db, auth);
+  });
+}
+
+function dinle(db, auth) {
+  if (dinleniyor) return;
+  dinleniyor = true;
+  bosCiz(); sahne('bos'); uyanikTut();
+
+  onSnapshot(doc(db, 'genel', 'ayarlar'), s => {
+    if (s.exists()) ayar = { ...ayar, ...s.data() };
+    bosCiz();
+  }, e => hataGoster(e, auth));
+
+  onSnapshot(doc(db, 'ekran', KASA_ID), s => {
+    mesajGizle();
+    const d = s.exists() ? s.data() : null;
+    if (!d || !d.siparisId) { birak(); sahne('bos'); return; }
+    if (d.siparisId === izlenen) return;
+    birak();
+    const id = d.siparisId;
+    izlenen = id;
+    siparisCiz(d);
+    sipUnsub = onSnapshot(doc(db, 'siparisler', id), ss => {
+      if (izlenen !== id) return;
+      if (!ss.exists()) { sahne('bos'); return; }
+      const v = ss.data();
+      if (v.durum === 'onaylandi') onayCiz(v);
+      else if (v.durum === 'bekliyor') siparisCiz({ ...d, kalemler: v.kalemler, toplam: v.toplam }, v.limitUyari);
+      else sahne('bos');
+    }, e => hataGoster(e, auth));
+  }, e => hataGoster(e, auth));
+}
+
+function birak() { if (sipUnsub) sipUnsub(); sipUnsub = null; izlenen = null; }
+
+function bosCiz() {
+  $('#lokantaAdi').textContent = ayar.lokantaAdi || '';
+  $('#karsilama').textContent = ayar.karsilama || '';
+  const link = new URL('./', location.href).href;
+  const q = $('#uygQr');
+  if (q.dataset.link !== link) { q.innerHTML = qrSvg(link); q.dataset.link = link; }
+}
+
+function siparisCiz(d, uyari) {
+  const u = $('#sinirUyari');
+  if (uyari) { u.innerHTML = `<b>⚠️ ${esc(uyari.musteriAd || '')}: şirket sınırı</b>${(uyari.sebepler || []).map(esc).join('<br>')}`; u.classList.remove('gizli'); }
+  else u.classList.add('gizli');
+  const k = d.kalemler || [], max = 7;
+  $('#kalemler').innerHTML = k.slice(0, max).map(x => `<div class="kalem"><span><span class="adet">${x.adet}×</span>${esc(x.ad)}</span><span class="tutar">${tl(x.fiyat * x.adet)}</span></div>`).join('')
+    + (k.length > max ? `<div class="kalem" style="color:#a8a29e"><span>+ ${k.length - max} kalem daha</span></div>` : '');
+  $('#toplam').textContent = tl(d.toplam);
+  const q = $('#qr');
+  if (q.dataset.link !== d.qr) { q.innerHTML = qrSvg(d.qr || ''); q.dataset.link = d.qr || ''; }
+  sahne('siparis');
+}
+
+function onayCiz(v) {
+  $('#onayAd').textContent = v.musteriAd || '';
+  $('#onaySirket').textContent = v.sirketAd || '';
+  $('#onayTutar').textContent = tl(v.toplam);
+  if ($('#onay').classList.contains('gizli')) sahne('onay');
+}
+
+function hataGoster(e, auth) {
+  console.error(e);
+  const k = String(e && e.code || '');
+  if (k.includes('permission-denied')) {
+    mesajGoster('Bu hesap kasa (yönetici) hesabı değil ya da Firestore kuralları yüklenmemiş. Kasa e-postasıyla giriş yapın.');
+    setTimeout(async () => { await signOut(auth); location.reload(); }, 5000);
+  } else mesajGoster('Bağlantı sorunu: ' + (e && e.message || e));
+}
+function mesajGoster(m) { const el = $('#mesaj'); el.textContent = m; el.classList.remove('gizli'); }
+function mesajGizle() { $('#mesaj').classList.add('gizli'); }
+
+/* Saat */
+function saatCiz() {
+  const d = new Date();
+  $('#saat').textContent = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + '  ·  ' + d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+saatCiz(); setInterval(saatCiz, 5000);
+
+/* Bağlantı noktası */
+function baglanti() { $('#nokta').classList.toggle('yok', !navigator.onLine); if (!navigator.onLine) mesajGoster('İnternet bağlantısı yok.'); else mesajGizle(); }
+window.addEventListener('online', baglanti); window.addEventListener('offline', baglanti);
+
+/* Tam ekran */
+function tamEkran() {
+  const el = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el);
+  else (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
+  uyanikTut();
+}
+
+/* Ekran kapanmasın (tablet) */
+let kilit = null;
+async function uyanikTut() {
+  try { if ('wakeLock' in navigator && document.visibilityState === 'visible' && !kilit) { kilit = await navigator.wakeLock.request('screen'); kilit.addEventListener('release', () => { kilit = null; }); } } catch (e) { /* desteklenmiyor */ }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') uyanikTut(); });
+document.addEventListener('click', uyanikTut);
+
+/* Fare hareketsizse imleci gizle */
+let imlecZaman = null;
+document.addEventListener('mousemove', () => {
+  document.body.classList.remove('imlecsiz');
+  clearTimeout(imlecZaman);
+  imlecZaman = setTimeout(() => document.body.classList.add('imlecsiz'), 3000);
+});
+</script>
+</body>
+</html>

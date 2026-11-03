@@ -1,0 +1,181 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================================
+    //  KASA (YÖNETİCİ) E-POSTASI  —  SADECE BU SATIRI DEĞİŞTİRİN
+    //  'kasa@ornek.com' yerine, Firebase > Authentication > Users bölümünde
+    //  oluşturduğunuz kasa kullanıcısının e-postasını KÜÇÜK HARFLE yazın.
+    //  Birden fazla yönetici için: ['kasa@ornek.com', 'patron@ornek.com']
+    // =====================================================================
+    function yonetici() {
+      return request.auth != null
+        && request.auth.token.get('email', '').lower() in ['quickkitstudio@gmail.com'];
+    }
+
+    function girisVar() {
+      return request.auth != null;
+    }
+
+    // Şirket paneli girişi (kasada oluşturulur): yalnızca kendi şirketi
+    function yetkili(sirketId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/yetkililer/$(request.auth.uid))
+        && get(/databases/$(database)/documents/yetkililer/$(request.auth.uid)).data.aktif == true
+        && get(/databases/$(database)/documents/yetkililer/$(request.auth.uid)).data.sirketId == sirketId;
+    }
+
+    function herhangiYetkili() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/yetkililer/$(request.auth.uid))
+        && get(/databases/$(database)/documents/yetkililer/$(request.auth.uid)).data.aktif == true;
+    }
+
+    // Giriş yapan müşterinin (çalışanın) kendi kaydı
+    function musteriKaydi() {
+      return get(/databases/$(database)/documents/musteriler/$(request.auth.uid)).data;
+    }
+
+    function sirketCalisani(sirketId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/musteriler/$(request.auth.uid))
+        && musteriKaydi().sirketId == sirketId
+        && musteriKaydi().durum == 'onayli';
+    }
+
+    // Onaylı müşteri, kasada bekleyen siparişi yalnızca KENDİ adına ve
+    // KENDİ şirketinin hesabına işleyebilir; yemek ve tutara dokunamaz.
+    function musteriOnayi() {
+      let m = musteriKaydi();
+      let yeni = request.resource.data;
+      return m.durum == 'onayli'
+        && resource.data.durum == 'bekliyor'
+        && yeni.diff(resource.data).affectedKeys().hasOnly(['durum', 'musteriId', 'musteriAd', 'sirketId', 'sirketAd', 'onayTarihi', 'onaylayan'])
+        && yeni.durum == 'onaylandi'
+        && yeni.musteriId == request.auth.uid
+        && yeni.musteriAd == m.ad
+        && yeni.sirketId == m.sirketId
+        && yeni.sirketAd == m.sirketAd
+        && yeni.onaylayan == 'musteri'
+        && yeni.onayTarihi == request.time;
+    }
+
+    // Şirket sınırına takılan müşteri, kasaya "sınırım dolu" uyarısı bırakabilir
+    function musteriUyarisi() {
+      let m = musteriKaydi();
+      return m.durum == 'onayli'
+        && resource.data.durum == 'bekliyor'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['limitUyari'])
+        && request.resource.data.limitUyari.musteriId == request.auth.uid;
+    }
+
+    // Lokanta adı ve şirket listesi (kayıt ekranı için)
+    match /genel/{belge} {
+      allow read: if girisVar();
+      allow write: if yonetici();
+    }
+
+    // Sadece kasa
+    match /sirketler/{id} {
+      allow read, write: if yonetici();
+    }
+    match /ekran/{id} {
+      allow read, write: if yonetici();
+    }
+
+    // Menü: kasa yönetir, şirket yetkilileri görebilir
+    match /menu/{id} {
+      allow read: if yonetici() || herhangiYetkili();
+      allow write: if yonetici();
+    }
+
+    // Şirket paneli girişleri: kasa oluşturur, kişi kendi kaydını okur
+    match /yetkililer/{uid} {
+      allow get: if yonetici() || (girisVar() && request.auth.uid == uid);
+      allow list, write: if yonetici();
+    }
+
+    // Şirketin yemek kuralları (öğün / tutar / menü sınırları)
+    match /sirketAyar/{sirketId} {
+      allow read: if yonetici() || yetkili(sirketId) || sirketCalisani(sirketId);
+      allow write: if yonetici() || yetkili(sirketId);
+    }
+
+    // Hakedişler: kasa keser, şirket kendi hakedişlerini görür
+    match /hakedisler/{id} {
+      allow read: if yonetici() || yetkili(resource.data.sirketId);
+      allow write: if yonetici();
+    }
+
+    // Müşteriler (çalışanlar)
+    match /musteriler/{uid} {
+      allow get: if yonetici()
+        || (girisVar() && request.auth.uid == uid)
+        || yetkili(resource.data.sirketId);
+      allow list: if yonetici() || yetkili(resource.data.sirketId);
+      // Kayıtta yalnızca lokantanın tanımladığı (aktif) şirketlerden biri seçilebilir
+      allow create: if girisVar()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['ad', 'telefon', 'eposta', 'sirketId', 'sirketAd', 'durum', 'kayitTarihi'])
+        && request.resource.data.durum == 'bekliyor'
+        && (!('eposta' in request.resource.data) || request.resource.data.eposta == request.auth.token.get('email', ''))
+        && exists(/databases/$(database)/documents/sirketler/$(request.resource.data.sirketId))
+        && get(/databases/$(database)/documents/sirketler/$(request.resource.data.sirketId)).data.ad == request.resource.data.sirketAd
+        && get(/databases/$(database)/documents/sirketler/$(request.resource.data.sirketId)).data.get('aktif', true) == true
+        && request.resource.data.ad is string
+        && request.resource.data.ad.size() >= 3
+        && request.resource.data.ad.size() <= 60
+        && request.resource.data.telefon is string
+        && request.resource.data.telefon.size() <= 20
+        && request.resource.data.sirketId is string
+        && request.resource.data.sirketAd is string
+        && request.resource.data.sirketAd.size() <= 100
+        && request.resource.data.kayitTarihi == request.time;
+      // Şirket yetkilisi kendi çalışanını onaylar / kapatır / sınır koyar
+      allow update: if yonetici()
+        || (yetkili(resource.data.sirketId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durum', 'limit', 'onayTarihi', 'onaylayan'])
+            && request.resource.data.durum in ['onayli', 'pasif']);
+      allow delete: if yonetici()
+        || (girisVar() && request.auth.uid == uid && resource.data.durum == 'bekliyor')
+        || (yetkili(resource.data.sirketId) && resource.data.durum == 'bekliyor');
+    }
+
+    // Ekstra hak talepleri: çalışan ister, şirket yetkilisi (veya kasa) onaylar / reddeder
+    match /hakTalepleri/{id} {
+      allow get, list: if yonetici()
+        || (girisVar() && resource.data.musteriId == request.auth.uid)
+        || yetkili(resource.data.sirketId);
+      allow create: if girisVar()
+        && request.resource.data.keys().hasOnly(['musteriId', 'musteriAd', 'sirketId', 'sirketAd', 'sebepler', 'tutar', 'not', 'durum', 'olusturma', 'gun', 'ay'])
+        && request.resource.data.musteriId == request.auth.uid
+        && sirketCalisani(request.resource.data.sirketId)
+        && request.resource.data.musteriAd == musteriKaydi().ad
+        && request.resource.data.durum == 'bekliyor'
+        && request.resource.data.not is string
+        && request.resource.data.not.size() <= 300
+        && request.resource.data.sebepler is list
+        && request.resource.data.sebepler.size() <= 10
+        && request.resource.data.olusturma == request.time;
+      allow update: if yonetici()
+        || (yetkili(resource.data.sirketId)
+            && resource.data.durum == 'bekliyor'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durum', 'hak', 'cevap', 'cevaplayan', 'cevapTarihi'])
+            && request.resource.data.durum in ['onaylandi', 'reddedildi']);
+      allow delete: if yonetici()
+        || (girisVar() && resource.data.musteriId == request.auth.uid && resource.data.durum == 'bekliyor');
+    }
+
+    // Siparişler
+    match /siparisler/{id} {
+      allow get: if yonetici()
+        || (girisVar() && (resource.data.durum == 'bekliyor' || resource.data.musteriId == request.auth.uid))
+        || yetkili(resource.data.sirketId);
+      allow list: if yonetici()
+        || (girisVar() && resource.data.musteriId == request.auth.uid)
+        || yetkili(resource.data.sirketId);
+      allow create, delete: if yonetici();
+      allow update: if yonetici() || (girisVar() && (musteriOnayi() || musteriUyarisi()));
+    }
+  }
+}
